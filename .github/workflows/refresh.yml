@@ -1,0 +1,45 @@
+name: 刷新指数快照并部署
+
+on:
+  schedule:
+    # 官方指数为 15 分钟原生粒度, 同步节奏一致
+    - cron: '*/15 * * * *'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 抓取各 SKU 最新价格历史与来源明细
+        run: python tools/fetch_snapshot.py
+        env:
+          # 对比基准 = 线上已部署的上一版快照(gh-pages 分支), 用于生成报价变动日志
+          SNAPSHOT_PREV_URL: https://raw.githubusercontent.com/${{ github.repository }}/gh-pages/data/snapshot.json
+
+      - name: 组装发布目录
+        run: |
+          mkdir -p _site
+          cp -r index.html assets data _site/
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - uses: actions/deploy-pages@v4

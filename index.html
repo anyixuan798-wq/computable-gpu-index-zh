@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Computable GPU 指数 (CGI) · 中文实时看板</title>
+<meta name="description" content="Computable GPU Index (CGI) 中文实时看板:可验证、可复现的 GPU 算力公开价格指数,单位为美元/GPU·时。覆盖 NVIDIA H100 / H200 / B200 / B300 四档按需算力。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230e6b4f'/%3E%3Ctext x='16' y='22' font-size='16' font-family='monospace' fill='white' text-anchor='middle' font-weight='bold'%3EG%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap nav-in">
+    <div class="logo">
+      <span class="mark">G</span>
+      <span>Computable GPU 指数</span>
+      <span class="zh">中文实时看板</span>
+    </div>
+    <div class="nav-links">
+      <span class="live-dot"><i></i><span id="liveLabel">连接中</span></span>
+      <a href="https://market.getcomputable.com/gpu-index" target="_blank" rel="noopener">原版看板 ↗</a>
+      <a href="https://github.com/getcomputable/gpu-index" target="_blank" rel="noopener" class="toggl">GitHub 项目</a>
+      <a href="https://docs.getcomputable.com/" target="_blank" rel="noopener" class="toggl">API 文档</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap">
+  <div class="page-head">
+    <div class="eyebrow">Computable GPU Index (CGI)</div>
+    <h1>GPU 算力公开价格指数 · 中文实时看板</h1>
+    <div class="sub">
+      指数单位:美元 / GPU·时(按需档)。CGI 是全球首个开源、可验证的 GPU 算力价格指数:基于固定来源面板(
+      <a href="#panel">8 家云服务商</a>)的公开按需报价,采用容错、抗离群值的方法论,任何人都能核验并复现每一次发布值。
+      <a href="#methodology">方法学说明 ↓</a>
+    </div>
+  </div>
+
+  <div id="errBox" class="err-box"></div>
+
+  <!-- Hero -->
+  <section class="hero-grid">
+    <div class="card hero-main">
+      <div class="hero-top">
+        <span class="eyebrow" id="heroEyebrow">指数 · NVIDIA B300 · 按需 · 美元/GPU·时</span>
+      </div>
+      <div class="price-row">
+        <div class="price"><span class="cur">$</span><span id="heroPrice" class="num">—</span></div>
+        <div id="heroPct" class="pct-badge"><span class="spin"></span></div>
+      </div>
+      <div class="meta-row">
+        <span>稳定性带 <b class="num" id="heroBand">± —</b></span>
+        <span>数据时间 <b class="num" id="heroAsOf">—</b></span>
+        <span>北京时间 <b class="num" id="heroAsOfCn">—</b></span>
+        <span>指数新鲜度 <b id="heroFresh">—</b></span>
+      </div>
+      <p class="desc" id="heroDesc">加载中…</p>
+    </div>
+
+    <div class="card lane-list" id="laneList">
+      <!-- 车道 JS 渲染: H100 / H200 / B200 / B300 -->
+    </div>
+  </section>
+
+  <!-- 统计条 -->
+  <section class="card stat-strip" id="statStrip">
+    <div class="stat"><span class="k">通过来源</span><span class="v num" id="stSources">—</span></div>
+    <div class="stat"><span class="k">今日最高</span><span class="v num" id="stHigh">—</span></div>
+    <div class="stat"><span class="k">今日最低</span><span class="v num" id="stLow">—</span></div>
+    <div class="stat"><span class="k">发布以来</span><span class="v num" id="stSince">—</span></div>
+  </section>
+
+  <!-- 价格历史图 -->
+  <section class="card chart-card">
+    <div class="chart-head">
+      <h2 id="chartTitle">价格历史 · NVIDIA B300</h2>
+      <span class="unit num">USD/GPU·时</span>
+      <span class="legend-line"><span><span class="sw" style="background:#0e6b4f"></span>指数</span><span><span class="sw" style="background:#8ecdb8"></span>± 稳定性带</span></span>
+      <div class="range-tabs" id="rangeTabs">
+        <button data-r="24H">24H</button>
+        <button data-r="7D">7D</button>
+        <button data-r="30D" class="active">30D</button>
+        <button data-r="90D">90D</button>
+      </div>
+    </div>
+    <div id="chart"><div style="padding:40px;text-align:center;color:#8a8a8a"><span class="spin"></span> 图表组件加载中…</div></div>
+    <div class="chart-cap" id="chartCap">—</div>
+  </section>
+
+  <!-- 来源明细 + 更新日志 -->
+  <section class="two-col">
+    <div class="card panel" id="panel">
+      <h2>来源面板明细 <span class="tag" id="panelSkuTag">NVIDIA B300</span></h2>
+      <div class="sub">每行代表一家来源在最近一次指数观测中的投票:报价、波动带与活跃度权重。点击行首名称可跳转到该来源的公开报价页。</div>
+
+      <div class="spread">
+        <div class="cap">来源报价分布 · 指数参考位</div>
+        <div class="track" id="spreadTrack"><div class="idxmark" id="spreadIdx" style="left:50%"></div></div>
+        <div class="labels">
+          <span id="spMin" class="num">—</span>
+          <span id="spIdx" class="mid num">—</span>
+          <span id="spMax" class="num">—</span>
+        </div>
+        <div class="dots" id="spreadDots"></div>
+      </div>
+
+      <table class="tbl">
+        <thead><tr><th>来源</th><th>报价</th><th>± 波动带</th><th>活跃度权重</th><th>地区</th></tr></thead>
+        <tbody id="recTbody"></tbody>
+      </table>
+      <div class="cap-note" id="panelNote">—</div>
+    </div>
+
+    <div class="card panel">
+      <h2>实时更新日志 <span class="tag" id="logSkuTag">—</span></h2>
+      <div class="sub">来源报价的最近变动(每 15 分钟一轮采集,由本站自动抓取器同步)。</div>
+      <div class="log-box">
+        <div class="log-head">$ 最近更新 receipts/<span id="logSkuFile">—</span>.log</div>
+        <div id="logBody"><div style="padding:14px;color:#8a8a8a">加载中…</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 使用 -->
+  <section class="use-grid">
+    <div class="card use">
+      <div class="k">USE THE INDEX · 接入数据</div>
+      <h2>MCP 服务器</h2>
+      <p>把实时指数接入任意 MCP 客户端:匿名、只读、无需密钥。</p>
+      <div class="cmd"><code>mcp.getcomputable.com/mcp</code><button class="copy" data-copy="mcp.getcomputable.com/mcp">复制</button></div>
+      <a class="footlink" href="https://docs.getcomputable.com/mcp-server" target="_blank" rel="noopener">MCP 接入文档 →</a>
+    </div>
+    <div class="card use">
+      <div class="k">USE THE INDEX · 复现验证</div>
+      <h2>复现今日发布值</h2>
+      <p>克隆采集与计算代码,在你自己的机器上复现今天的指数:一条命令 + 今天的日期。</p>
+      <div class="cmd"><code id="reproCmd">git clone https://github.com/getcomputable/gpu-index</code><button class="copy" id="reproCopy" data-copy="">复制</button></div>
+      <a class="footlink" href="https://github.com/getcomputable/gpu-index" target="_blank" rel="noopener">github.com/getcomputable/gpu-index →</a>
+    </div>
+  </section>
+
+  <!-- 方法学 -->
+  <section class="card meth" id="methodology">
+    <h2>指数方法学 · 它怎么算出来的</h2>
+    <ul>
+      <li>每次发布 = 固定来源面板(8 家公开报价)的<i>加权投票</i>:每家来源以「报价、报价−σ、报价+σ」三票参与,票权即其活跃度权重</li>
+      <li>统计量 = <b>加权截尾均值 (interquantile mean)</b>,α≈0.167,天然抗离群值;再经 σ 过滤与活跃度(出勤率)加权</li>
+      <li>容错:单家来源短暂缺席会携带其最近价格(最多 72h);持续缺席则权重衰减至出勤下限</li>
+      <li>可复现:每一条发布值都附有输入快照哈希与逐来源 receipts,公开记录可在本地逐条重算比对</li>
+      <li>防操纵:活跃度权重来自历史预测误差模型(predictive_v1),报价异常的来源权重自动被压低(如 vast 仅约 8%)</li>
+      <li>历史窗口:滚动 90 天、15 分钟原生粒度;数据许可 CC BY-NC 4.0</li>
+    </ul>
+    <div class="params" id="methParams">—</div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot-grid">
+    <span class="attr"><b>Computable GPU Index by Computable</b> — mcp.getcomputable.com · CC BY-NC 4.0</span>
+    <span class="links">
+      <a href="https://market.getcomputable.com/gpu-index" target="_blank" rel="noopener">原版实时看板</a>
+      <a href="https://github.com/getcomputable/gpu-index" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://docs.getcomputable.com/" target="_blank" rel="noopener">API 文档</a>
+      <a href="https://www.getcomputable.com/" target="_blank" rel="noopener">getcomputable.com</a>
+    </span>
+    <span>本页为社区制作的非官方中文镜像站,数据版权归 Computable(CC BY-NC 4.0),仅作学习与参考。</span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" onerror="window.__echartsFailed=1"></script>
+<script>
+if (window.__echartsFailed) {
+  var s = document.createElement('script');
+  s.src = 'https://registry.npmmirror.com/echarts/5.5.1/files/dist/echarts.min.js';
+  document.head.appendChild(s);
+}
+</script>
+<script src="assets/app.js"></script>
+</body>
+</html>
